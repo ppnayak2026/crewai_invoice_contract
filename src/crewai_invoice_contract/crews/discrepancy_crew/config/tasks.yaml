@@ -1,0 +1,70 @@
+extract_contract_task:
+  description: >
+    Call the Read Contract PDF tool to get the full text of the purchase terms
+    and conditions agreement. Extract:
+    1. The referenced invoice number the contract governs.
+    2. Every line item in scope, with its exact unit price.
+    3. Payment terms (net days) and payment method.
+    4. The tax provision (note if it sets a rate or leaves the rate open).
+    5. Any other clause relevant to billing disputes (revisions, delivery
+       acceptance window, termination payment obligations).
+    Quote figures and clause text exactly as written. Do not infer a price or
+    term that is not explicitly stated.
+  expected_output: >
+    A markdown summary with sections: Referenced Invoice, Scope & Unit Pricing
+    (a table: item, unit price), Payment Terms, Tax Provision, Other Relevant
+    Clauses. Every price and term is copied verbatim from the contract.
+  agent: contract_analyst
+
+extract_invoice_task:
+  description: >
+    Call the Read Invoice PDF tool to get the full text of the vendor invoice.
+    Extract:
+    1. Invoice number, invoice date, due date.
+    2. Every billed line item with description, quantity, unit price, and amount.
+    3. Subtotal, tax rate and amount, and total due.
+    4. Payment terms and method stated on the invoice.
+    Report the numbers exactly as billed, even if a total looks inconsistent —
+    do not recompute or "fix" anything here.
+  expected_output: >
+    A markdown summary with sections: Invoice Header (number, dates), Billed
+    Line Items (a table: description, qty, unit price, amount), Totals
+    (subtotal, tax rate, tax amount, total due), Payment Terms. Every figure is
+    copied verbatim from the invoice.
+  agent: invoice_analyst
+
+compare_and_report_task:
+  description: >
+    Using the contract summary and invoice summary from the previous two tasks,
+    call the Compute Contract vs Invoice Discrepancies tool to get the exact,
+    pre-computed comparison numbers (unit price deltas, amount deltas, invoice
+    math checks, and payment term match). Use only the numbers this tool
+    returns for the comparison — do not recompute deltas yourself.
+
+    Then write the final discrepancy report for accounts payable:
+    1. For every line item, state whether it matches, is overcharged, or is
+       undercharged, with the exact per-unit and per-line dollar delta from the
+       tool output.
+    2. Flag any item billed but missing from the contract, or in the contract
+       but not billed.
+    3. State whether invoice reference, payment terms, and invoice math
+       (subtotal/tax/total) are internally consistent, using the tool's
+       findings.
+    4. Give the net dollar impact of all pricing discrepancies (before tax),
+       from the tool output.
+    5. End with one clear recommendation: approve as-is, approve with a named
+       dollar adjustment, or hold for vendor clarification, and why.
+  expected_output: >
+    A markdown report titled "# Invoice vs. Contract Discrepancy Report" with
+    these exact sections in order: "## Summary" (2-3 sentences: overall
+    verdict and net dollar impact), "## Line Item Discrepancies" (a table:
+    item, contract unit price, invoice unit price, delta, status), "## Scope
+    Differences" (items only in one document, or "None found"), "## Terms &
+    Math Checks" (invoice reference, payment terms, subtotal/tax/total
+    consistency), "## Recommendation" (one clear action with justification).
+    Every dollar figure traces back to the Compute Contract vs Invoice
+    Discrepancies tool output.
+  agent: discrepancy_auditor
+  context:
+    - extract_contract_task
+    - extract_invoice_task
